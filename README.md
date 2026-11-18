@@ -1,3 +1,49 @@
+# ZiPulses : firmware modifié (non officiel)
+
+Cette branche contient une version modifiée du firmware du **LiXee ZiPulses**, basée sur la v12 (`4000-0012`) du dépôt d'origine [fairecasoimeme/ZiPulses](https://github.com/fairecasoimeme/ZiPulses). Elle n'est **ni officielle ni soutenue par LiXee**. Le code d'origine appartient à LiXee ; le dépôt d'origine ne publie pas de licence, et cette version n'en ajoute pas.
+
+Elle rassemble les modifications que j'ai proposées à LiXee, une par PR (#65 à #73). Si elles sont acceptées, elles arriveront dans une version officielle et cette branche n'aura plus de raison d'être.
+
+Je l'utilise sur un compteur d'eau (contact reed, 1 L par impulsion), avec une carte v1.0. Elle n'a été testée que sur ce module : à utiliser à vos risques, en gardant une sauvegarde de la puce.
+
+## Ce qui change par rapport à la v12
+
+- **L'index part pendant la consommation** (#65). Chaque mise en veille relançait le réveil de 60 s ; comme chaque impulsion réveille le module, l'index n'était envoyé qu'une minute après la fin du tirage. Ici, le réveil garde le temps restant.
+- **L'index est confirmé** (#66). Il est envoyé directement au coordinateur avec un accusé de réception, et renvoyé tant qu'il n'est pas confirmé. Il ne dépend plus du bind fait à l'appairage (voir #63).
+- **Mode pile ou secteur, réglable depuis zigbee2mqtt** (#68). En mode secteur, l'index part dès la première impulsion d'un tirage puis toutes les 5 secondes, et la reconnexion se fait sans attente. Le mode pile, par défaut, garde le comportement économe.
+- **Moins de consommation sur pile** : plus d'interrogation radio à chaque impulsion (#69), une LED réduite à un éclat par impulsion (#72), et un firmware vraiment muet sur le port série (#73).
+- **Plus robuste** : le rapport complet n'est plus coupé par la mise en veille (#70), et la file d'événements Zigbee ne déborde plus (#71).
+- **Compilation avec un MCUXpresso récent** (25.6, GCC 14), sans aucun avertissement (#67).
+
+Le rapport complet (index, pile, température) reste toutes les 2 h, comme dans la v12. Le firmware s'annonce en `4000-13U1` (attribut `swBuildId`). L'appareil reste reconnu comme un ZiPulses par zigbee2mqtt, sans réappairage.
+
+## Compiler
+
+Sous Windows, avec MCUXpresso IDE (testé avec la 25.6, GCC 14) installé dans `C:\NXP`, depuis Git Bash :
+
+```
+outils/compiler.sh            # firmware normal (4000-13U1), dans sorties/
+outils/compiler.sh --traces   # version de banc avec traces série (4000-13D1)
+```
+
+La version avec traces sert seulement aux essais : sur pile, les traces consomment.
+
+## Flasher
+
+Même procédure que dans le README ci-dessous, avec ces précautions :
+
+- **Faites d'abord une sauvegarde complète de la puce** (`DK6Programmer … -d FLASH=sauvegarde.bin`). C'est votre seul retour arrière vers le firmware LiXee. Elle contient la clé de votre réseau Zigbee : ne la partagez pas.
+- **N'utilisez pas `-e FLASH`**, qui efface l'index enregistré et l'appairage. Sans cette option, le module garde son index et rejoint le réseau seul.
+- Avec un adaptateur CP2102, 500 000 bauds ne passaient pas chez moi : utilisez `-P 115200`.
+
+## zigbee2mqtt
+
+Pour régler le mode pile ou secteur, copiez `zigbee2mqtt/zipulses.mjs` dans le dossier `external_converters` de zigbee2mqtt, puis redémarrez-le. Une nouvelle entité `power_mode` (`battery` / `mains`) apparaît. Le module dort la plupart du temps : appuyez sur son bouton juste avant de changer le réglage.
+
+---
+
+*Ci-dessous, le README d'origine de LiXee.*
+
 # ZiPulses
 Compteur d'impulsions communiquant en ZigBee 3.0.  
 Le ZiPulses est disponible en boutique :  
